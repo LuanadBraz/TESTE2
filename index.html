@@ -1,3 +1,61 @@
+<?php
+// Configuração do banco de dados
+$servername = "localhost";
+$username = "root"; // Usuário do MySQL
+$password = ""; // Senha do MySQL
+$dbname = "feedbacks_db";
+
+// Criar conexão com o banco de dados
+$conn = new mysqli($servername, $username, $password, $dbname);
+
+// Verificar a conexão
+if ($conn->connect_error) {
+    die("Conexão falhou: " . $conn->connect_error);
+}
+
+// Salvar feedback no banco de dados
+if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['username'])) {
+    $username = $_POST['username'];
+    $level = $_POST['level'];
+    $area = $_POST['area'];
+    $feedback = $_POST['feedback'];
+    $date = date('Y-m-d');
+
+    $sql = "INSERT INTO feedbacks (date, username, level, area, feedback)
+            VALUES ('$date', '$username', '$level', '$area', '$feedback')";
+
+    if ($conn->query($sql) === TRUE) {
+        echo "Feedback adicionado com sucesso!";
+    } else {
+        echo "Erro: " . $sql . "<br>" . $conn->error;
+    }
+}
+
+// Deletar feedback
+if (isset($_GET['delete_id'])) {
+    $id = $_GET['delete_id'];
+    $sql = "DELETE FROM feedbacks WHERE id = $id";
+    if ($conn->query($sql) === TRUE) {
+        echo "Feedback excluído com sucesso!";
+    } else {
+        echo "Erro: " . $conn->error;
+    }
+}
+
+// Recuperar feedbacks
+$sql = "SELECT * FROM feedbacks ORDER BY date DESC";
+$result = $conn->query($sql);
+$feedbacks = [];
+
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $feedbacks[] = $row;
+    }
+}
+
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
@@ -5,9 +63,143 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Feedback de Clientes Playbonds</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
     <style>
-        /* Seu CSS aqui (não mudou) */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f1f6;
+            margin: 0;
+            padding: 0;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 30px;
+            background-color: #fff;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2d2d2d;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: grid;
+            gap: 20px;
+        }
+
+        label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select, textarea {
+            padding: 12px 15px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            border-color: #4CAF50;
+            outline: none;
+        }
+
+        .btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #45a049;
+        }
+
+        table {
+            width: 100%;
+            margin-top: 40px;
+            border-collapse: collapse;
+        }
+
+        table th {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f7f7f7;
+        }
+
+        .actions button {
+            background-color: #e0e0e0;
+            color: #333;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: background-color 0.3s;
+        }
+
+        .actions button:hover {
+            background-color: #c0c0c0;
+        }
+
+        .edit-btn {
+            background-color: #ffa500;
+            color: white;
+        }
+
+        .edit-btn:hover {
+            background-color: #ff8c00;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                width: 90%;
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -15,18 +207,29 @@
 <div class="container">
     <h1>Feedback de Clientes Playbonds</h1>
 
-    <form id="feedback-form">
+    <form action="" method="POST">
         <label for="username">Nome de Usuário:</label>
         <input type="text" id="username" name="username" required placeholder="Digite o nome do usuário">
 
         <label for="level">Nível:</label>
         <select id="level" name="level" required>
-            <!-- opções de Níveis -->
+            <option value="Ativação">Ativação</option>
+            <option value="Cobre">Cobre</option>
+            <option value="Ferro">Ferro</option>
+            <option value="Bronze">Bronze</option>
+            <option value="Prata">Prata</option>
+            <option value="Ouro">Ouro</option>
+            <option value="Platina">Platina</option>
+            <option value="Diamante">Diamante</option>
+            <option value="Titânio">Titânio</option>
         </select>
 
         <label for="area">Área:</label>
         <select id="area" name="area" required>
-            <!-- opções de Áreas -->
+            <option value="Video Bingo">Video Bingo</option>
+            <option value="Cassino">Cassino</option>
+            <option value="Esportes">Esportes</option>
+            <option value="Sala de bingo">Sala de bingo</option>
         </select>
 
         <label for="feedback">Feedback:</label>
@@ -34,8 +237,6 @@
 
         <button type="submit" class="btn">Adicionar Feedback</button>
     </form>
-
-    <button id="download-btn" class="btn" style="margin-top: 20px;">Baixar Feedbacks em XLS</button>
 
     <table id="feedback-table">
         <thead>
@@ -45,92 +246,25 @@
                 <th>Nível</th>
                 <th>Área</th>
                 <th>Feedback</th>
+                <th>Ações</th>
             </tr>
         </thead>
-        <tbody></tbody>
+        <tbody>
+            <?php foreach ($feedbacks as $feedback): ?>
+                <tr>
+                    <td><?php echo $feedback['date']; ?></td>
+                    <td><?php echo $feedback['username']; ?></td>
+                    <td><?php echo $feedback['level']; ?></td>
+                    <td><?php echo $feedback['area']; ?></td>
+                    <td><?php echo $feedback['feedback']; ?></td>
+                    <td class="actions">
+                        <a href="?delete_id=<?php echo $feedback['id']; ?>"><button class="delete-btn">Excluir</button></a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody>
     </table>
 </div>
-
-<script>
-    // Função para carregar feedbacks
-    function loadFeedbacks() {
-        fetch('https://seu-servidor.com/api/feedbacks')  // Endereço da API do servidor
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.querySelector('#feedback-table tbody');
-                tbody.innerHTML = '';
-                data.forEach(feedback => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${feedback.date}</td>
-                        <td>${feedback.username}</td>
-                        <td>${feedback.level}</td>
-                        <td>${feedback.area}</td>
-                        <td>${feedback.feedback}</td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            })
-            .catch(error => console.error('Erro ao carregar feedbacks:', error));
-    }
-
-    // Função para adicionar feedback
-    document.getElementById('feedback-form').addEventListener('submit', function(event) {
-        event.preventDefault();
-
-        const username = document.getElementById('username').value;
-        const level = document.getElementById('level').value;
-        const area = document.getElementById('area').value;
-        const feedback = document.getElementById('feedback').value;
-
-        const feedbackData = {
-            date: new Date().toLocaleDateString(),
-            username,
-            level,
-            area,
-            feedback
-        };
-
-        fetch('https://seu-servidor.com/api/feedbacks', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(feedbackData)
-        })
-        .then(response => response.json())
-        .then(() => {
-            document.getElementById('feedback-form').reset();
-            loadFeedbacks();
-        })
-        .catch(error => console.error('Erro ao salvar feedback:', error));
-    });
-
-    // Função para baixar feedbacks em XLS
-    document.getElementById('download-btn').addEventListener('click', function() {
-        fetch('https://seu-servidor.com/api/feedbacks')  // Endereço da API do servidor
-            .then(response => response.json())
-            .then(data => {
-                const xlsxData = data.map(feedback => [
-                    feedback.date,
-                    feedback.username,
-                    feedback.level,
-                    feedback.area,
-                    feedback.feedback
-                ]);
-                const header = ['Data', 'Nome de Usuário', 'Nível', 'Área', 'Feedback'];
-                xlsxData.unshift(header);
-
-                const ws = XLSX.utils.aoa_to_sheet(xlsxData);
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, 'Feedbacks');
-                XLSX.writeFile(wb, 'feedbacks.xlsx');
-            })
-            .catch(error => console.error('Erro ao baixar feedbacks:', error));
-    });
-
-    window.onload = loadFeedbacks;
-</script>
 
 </body>
 </html>
